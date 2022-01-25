@@ -104,7 +104,6 @@ const Home: NextPage = () => {
     return new Promise<void>((resolve) => {
       setTimeout(async () => {
         resolve()
-        console.log(values)
         await router.push('/chat')
       }, 3000)
     })
