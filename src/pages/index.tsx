@@ -4,22 +4,117 @@ import {
   Button,
   Flex,
   FormControl,
+  FormErrorMessage,
   Grid,
   GridItem,
   Heading,
   Image,
   Input,
+  Link,
+  Skeleton,
   Text,
+  useToast,
 } from '@chakra-ui/react'
 import { FaGithub } from 'react-icons/fa'
+import { useForm } from 'react-hook-form'
+import { useRouter } from 'next/router'
+import { useEffect, useState } from 'react'
+import { apiClientSide } from '../services/apiClientSide'
+import { AxiosError } from 'axios'
+import { ResponseErrorMessages } from '../utils/ResponseErrorMessages'
+
+type LoginFormData = {
+  username: string
+}
+
+type ProfileData = {
+  login: string | null
+  public_repos: number | undefined
+  followers: number | undefined
+  following: number | undefined
+}
 
 const Home: NextPage = () => {
+  const {
+    handleSubmit,
+    register,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginFormData>({
+    defaultValues: {
+      username: '',
+    },
+  })
+
+  const [isSearching, setIsSearching] = useState(false)
+
+  const [profile, setProfile] = useState<ProfileData>({
+    login: null,
+    public_repos: undefined,
+    followers: undefined,
+    following: undefined,
+  })
+  const { login, public_repos, followers, following } = profile
+
+  const router = useRouter()
+
+  const toast = useToast()
+
+  useEffect(() => {
+    const subscription = watch(async ({ username }) => {
+      if (!username || username.length < 2) {
+        return
+      }
+      try {
+        setIsSearching(true)
+        const { data } = await apiClientSide
+          .get(`${username}`)
+          .catch((error: AxiosError) => {
+            throw error.response?.status
+          })
+
+        setProfile({
+          login: data.login,
+          public_repos: data.public_repos,
+          followers: data.followers,
+          following: data.following,
+        })
+      } catch (error) {
+        toast({
+          title: `${ResponseErrorMessages(error as number)}`,
+          position: 'top-right',
+          status: 'error',
+          isClosable: true,
+        })
+
+        setProfile({
+          login: null,
+          public_repos: undefined,
+          followers: undefined,
+          following: undefined,
+        })
+      } finally {
+        setIsSearching(false)
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [watch, toast])
+
+  const onSubmit = (values: LoginFormData): Promise<void> => {
+    return new Promise<void>((resolve) => {
+      setTimeout(async () => {
+        resolve()
+        console.log(values)
+        await router.push('/chat')
+      }, 3000)
+    })
+  }
+
   return (
     <Flex
       as={'main'}
       position={'relative'}
-      bgGradient="linear(to-r, pink.500, orange.500)"
-      height={['100%', '100vh']}
+      height={['100vh']}
       width={'100vw'}
       align={'center'}
       justify={'center'}
@@ -53,19 +148,22 @@ const Home: NextPage = () => {
         templateColumns={['1fr', '1fr', '1fr', '1fr', 'repeat(2, 1fr)']}
         alignItems={'center'}
         gap={'4rem'}
-        mt={'6rem'}
         zIndex={'1'}
+        width={'100%'}
+        maxW={'1280px'}
+        height={'100%'}
+        py={'6rem'}
       >
         <GridItem>
           <Grid
             as={'div'}
-            w={['xs', 'sm', 'xl', '2xl', '3xl']}
+            w={['xs', 'md', 'xl', '3xl', '3xl']}
             bgColor={'white'}
             borderRadius={'md'}
-            gridTemplateColumns={['1fr', '1fr', 'repeat(2, 1fr)']}
+            gridTemplateColumns={['1fr', '1fr', '1fr', 'repeat(2, 1fr)']}
             alignContent={'center'}
             gap={'2rem'}
-            px={['2rem', '3rem']}
+            px={['1rem', '2rem', '3rem']}
             py={['1rem', '2rem']}
             mx={'auto'}
           >
@@ -91,69 +189,248 @@ const Home: NextPage = () => {
                 </Text>
               </Flex>
 
-              <Flex direction={'column'} align={'center'} w={['100%']}>
-                <FormControl id={'login'}>
+              <Flex
+                as={'form'}
+                onSubmit={handleSubmit(onSubmit)}
+                direction={'column'}
+                align={'center'}
+                w={['100%']}
+              >
+                <FormControl
+                  id={'login'}
+                  isInvalid={errors.username !== undefined}
+                >
                   <Input
-                    name="username"
                     type="text"
                     border={'1px solid'}
                     borderColor={'pink.500'}
                     borderRadius={'md'}
                     placeholder="Digite seu usuário do GitHub"
+                    {...register('username', {
+                      required: 'Usuário do GitHub é obrigatório',
+                      minLength: {
+                        value: 2,
+                        message: 'Mínimo de 2 caracteres',
+                      },
+                      maxLength: {
+                        value: 50,
+                        message: 'Máximo de 50 caracteres',
+                      },
+                    })}
+                    defaultValue={''}
                   />
-                </FormControl>
 
-                <Button
-                  leftIcon={<FaGithub />}
-                  p={4}
-                  w={'100%'}
-                  mt={4}
-                  color="white"
-                  fontWeight="bold"
-                  borderRadius="md"
-                  bgGradient="linear(to-r, pink.500, orange.500)"
-                  _hover={{
-                    bgGradient: 'linear(to-r, orange.500, pink.500)',
-                  }}
-                >
-                  Entrar
-                </Button>
+                  {errors.username && (
+                    <FormErrorMessage>
+                      {errors.username.message}
+                    </FormErrorMessage>
+                  )}
+
+                  <Button
+                    leftIcon={<FaGithub />}
+                    p={4}
+                    w={'100%'}
+                    mt={4}
+                    color="white"
+                    fontWeight="bold"
+                    borderRadius="md"
+                    bgGradient="linear(to-r, pink.500, orange.500)"
+                    _hover={{
+                      bgGradient: 'linear(to-r, orange.500, pink.500)',
+                    }}
+                    isLoading={isSubmitting}
+                    type="submit"
+                  >
+                    Entrar
+                  </Button>
+                </FormControl>
               </Flex>
             </GridItem>
             <GridItem
               display={'flex'}
               flexDir={'column'}
               direction={'column'}
-              w={'2xs'}
-              h={'xs'}
+              w={['3xs', '2xs', 'xs']}
+              py={'1rem'}
               border={'1px solid'}
               borderColor={'orange.200'}
               borderRadius={'md'}
               justifySelf={'center'}
               alignItems={'center'}
-              justifyContent={'center'}
+              justifyContent={'space-evenly'}
               gap={'1rem'}
             >
-              <Image
-                w={'3xs'}
-                borderRadius={'md'}
-                src={'https://github.com/NicolasLOrtiz.png'}
-                alt="Logo"
-              />
-              <Flex direction={'column'} align={'center'} justify={'center'}>
-                <Heading
-                  as={'h2'}
-                  bgGradient="linear(to-l, #7928CA, #FF0080)"
-                  bgClip="text"
-                  fontSize="lg"
-                  fontWeight="bold"
-                >
-                  Nicolas Ortiz
-                </Heading>
-                <Text fontSize="lg" fontWeight="regular">
-                  Full Stack Developer
-                </Text>
-              </Flex>
+              {!isSearching ? (
+                <Link href={`https://github.com/${login}`} isExternal>
+                  <Image
+                    w={'160px'}
+                    borderRadius={'md'}
+                    src={
+                      login ? `https://github.com/${login}.png` : '/nodata.svg'
+                    }
+                    alt="Logo"
+                  />
+                </Link>
+              ) : (
+                <Skeleton
+                  w={'160px'}
+                  h={'160px'}
+                  borderRadius={'md'}
+                  startColor="pink.500"
+                  endColor="orange.500"
+                />
+              )}
+
+              {login ? (
+                <>
+                  <Heading
+                    as={'h2'}
+                    bgGradient="linear(to-l, #7928CA, #FF0080)"
+                    bgClip="text"
+                    fontSize="lg"
+                    fontWeight="bold"
+                  >
+                    {login}
+                  </Heading>
+
+                  <Flex
+                    direction={['column', 'column', 'row']}
+                    align={'center'}
+                    gap={'1rem'}
+                    flexWrap={['wrap', 'wrap', 'nowrap']}
+                    w={['100%', '100%', 'auto']}
+                    px={'1rem'}
+                  >
+                    <Link
+                      href={`https://github.com/${login}?tab=followers`}
+                      display={'flex'}
+                      flexDir={'column'}
+                      align={'center'}
+                      bg={'blue.100'}
+                      p={'0.4rem'}
+                      borderRadius={'md'}
+                      isExternal
+                      _hover={{
+                        textDecoration: 'none',
+                      }}
+                      cursor={'pointer'}
+                      w={['100%', '100%', 'auto']}
+                    >
+                      <Heading
+                        as={'h3'}
+                        color={'blue.600'}
+                        fontWeight={'bold'}
+                        fontSize={'lg'}
+                      >
+                        {followers}
+                      </Heading>
+                      <Text fontSize={'sm'} color={'blue.400'}>
+                        Seguidores
+                      </Text>
+                    </Link>
+
+                    <Link
+                      href={`https://github.com/${login}?tab=following`}
+                      display={'flex'}
+                      flexDir={'column'}
+                      align={'center'}
+                      bg={'red.100'}
+                      p={'0.4rem'}
+                      borderRadius={'md'}
+                      isExternal
+                      _hover={{
+                        textDecoration: 'none',
+                      }}
+                      cursor={'pointer'}
+                      w={['100%', '100%', 'auto']}
+                    >
+                      <Heading
+                        as={'h3'}
+                        color={'red.600'}
+                        fontWeight={'bold'}
+                        fontSize={'lg'}
+                      >
+                        {following}
+                      </Heading>
+                      <Text fontSize={'sm'} color={'red.400'}>
+                        Seguindo
+                      </Text>
+                    </Link>
+
+                    <Link
+                      href={`https://github.com/${login}?tab=repositories`}
+                      display={'flex'}
+                      flexDir={'column'}
+                      align={'center'}
+                      bg={'green.100'}
+                      p={'0.4rem'}
+                      borderRadius={'md'}
+                      isExternal
+                      _hover={{
+                        textDecoration: 'none',
+                      }}
+                      cursor={'pointer'}
+                      w={['100%', '100%', 'auto']}
+                    >
+                      <Heading
+                        as={'h3'}
+                        color={'green.600'}
+                        fontWeight={'bold'}
+                        fontSize={'lg'}
+                      >
+                        {public_repos}
+                      </Heading>
+                      <Text fontSize={'sm'} color={'green.400'}>
+                        Repositórios
+                      </Text>
+                    </Link>
+                  </Flex>
+                </>
+              ) : isSearching ? (
+                <>
+                  <Skeleton
+                    startColor="pink.500"
+                    endColor="orange.500"
+                    height="20px"
+                    width="80%"
+                  />
+
+                  <Flex
+                    direction={['column', 'column', 'row']}
+                    align={'center'}
+                    gap={'1rem'}
+                    flexWrap={['wrap', 'wrap', 'nowrap']}
+                    w={['100%', '100%', 'auto']}
+                    px={'1rem'}
+                  >
+                    <Skeleton
+                      borderRadius={'md'}
+                      startColor="pink.500"
+                      endColor="orange.500"
+                      width={['100%', '100%', '80px']}
+                      height={'60px'}
+                    />
+
+                    <Skeleton
+                      borderRadius={'md'}
+                      startColor="pink.500"
+                      endColor="orange.500"
+                      width={['100%', '100%', '80px']}
+                      height={'60px'}
+                    />
+
+                    <Skeleton
+                      borderRadius={'md'}
+                      startColor="pink.500"
+                      endColor="orange.500"
+                      width={['100%', '100%', '80px']}
+                      height={'60px'}
+                    />
+                  </Flex>
+                </>
+              ) : (
+                <Text fontSize={'lg'}>Insira seu usuário</Text>
+              )}
             </GridItem>
           </Grid>
         </GridItem>

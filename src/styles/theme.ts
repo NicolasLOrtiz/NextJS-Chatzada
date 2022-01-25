@@ -21,4 +21,11 @@ export const theme = extendTheme({
     heading: 'Roboto',
     body: 'Roboto',
   },
+  styles: {
+    global: {
+      body: {
+        bgGradient: 'linear(to-r, pink.500, orange.500)',
+      },
+    },
+  },
 })
