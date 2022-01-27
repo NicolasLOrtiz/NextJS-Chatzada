@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import { Flex, IconButton, Input } from '@chakra-ui/react'
 import { IoHappyOutline, IoSendOutline } from 'react-icons/io5'
 import Header from '../components/Header'
@@ -77,7 +77,14 @@ const Chat: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>(mockMessages)
   const { register, handleSubmit } = useForm<FormData>()
 
-  const onSubmit: SubmitHandler<FormData> = (values) => {
+  const removeMessage = useCallback(
+    (id: number) => {
+      setMessages(messages.filter((message) => message.id !== id))
+    },
+    [messages]
+  )
+
+  const sendMessage: SubmitHandler<FormData> = (values) => {
     setMessages([
       ...messages,
       {
@@ -104,7 +111,7 @@ const Chat: React.FC = () => {
       >
         <Header />
 
-        <MessageList messages={messages} />
+        <MessageList messages={messages} removeMessage={removeMessage} />
 
         <Flex align={'center'} gap={'8px'}>
           <Input
@@ -116,7 +123,7 @@ const Chat: React.FC = () => {
             {...register('message')}
             onKeyPress={(e) => {
               if (e.key === 'Enter') {
-                handleSubmit(onSubmit)
+                handleSubmit(sendMessage)
               }
             }}
           />
@@ -125,7 +132,7 @@ const Chat: React.FC = () => {
             variant={'outline'}
             colorScheme={'orange'}
             aria-label={'Send'}
-            onClick={handleSubmit(onSubmit)}
+            onClick={handleSubmit(sendMessage)}
           />
           <IconButton
             icon={<IoHappyOutline />}
