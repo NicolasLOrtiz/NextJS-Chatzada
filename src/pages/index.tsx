@@ -103,7 +103,9 @@ const Home: NextPage = () => {
   const onSubmit = (values: LoginFormData): Promise<void> => {
     return new Promise<void>((resolve) => {
       setTimeout(async () => {
+        setIsSearching(true)
         resolve()
+        setIsSearching(false)
         await router.push('/chat')
       }, 3000)
     })
@@ -113,7 +115,7 @@ const Home: NextPage = () => {
     <Flex
       as={'main'}
       position={'relative'}
-      height={['100vh']}
+      height={'100vh'}
       width={'100vw'}
       align={'center'}
       justify={'center'}
